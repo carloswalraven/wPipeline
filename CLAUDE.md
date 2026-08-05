@@ -1,4 +1,4 @@
-# CLAUDE.md — v001 — 05-08-2026
+# CLAUDE.md — v002 — 05-08-2026
 
 Lo construido y verificado. Nada de lo planeado: eso vive en PENDIENTES.md.
 
@@ -13,6 +13,14 @@ Apprentice.
 Carlos dirige la funcionalidad y decide. Claude implementa. Cada etapa entrega
 un MAPA de solo lectura antes de tocar código, y se cierra corriendo, probando y
 commiteando sola.
+
+---
+
+## Reglas de trabajo
+
+**Idioma.** El español del proyecto es neutro mexicano de tú (dime, pides, haz),
+nunca voseo (decime, pedís, hacé). Aplica a los documentos del repo y a las
+respuestas de Claude Code.
 
 ---
 
@@ -58,6 +66,60 @@ saliera firmado con el correo real, GitHub rechaza el push.
 Decisión sellada: **no se usa `Co-Authored-By` en los commits.** La atribución
 del uso de IA va una sola vez en el README, explicada por Carlos. Ver
 PENDIENTES.md, spec *README del repo*.
+
+---
+
+## Tooling del repo
+
+Herramientas de trabajo, no de pipeline. Viven en `.claude/` y están en git,
+porque son parte de cómo se construye el proyecto.
+
+### Hook Stop de portapapeles
+
+**Archivos:** `.claude/hooks/copy-summary-to-clipboard.py` (ejecutable) y la
+entrada `hooks.Stop` en `.claude/settings.json`.
+
+Al terminar cada respuesta, Claude Code dispara el evento `Stop` y el hook copia
+al portapapeles el último bloque de texto del asistente, en texto plano: sin
+códigos ANSI ni decoración de terminal. Lee el JSON del evento por stdin, saca
+`transcript_path`, recorre ese JSONL y pasa el texto por `pbcopy`.
+
+El comando en `settings.json` termina en `2>/dev/null || true`, así que una falla
+del hook nunca bloquea ni ensucia el evento `Stop`.
+
+**Origen y corrección.** Se copió del repo de Timer Estela y se le agregó
+`stable_last_assistant_text()`. El problema del original: el hook puede
+dispararse antes de que el mensaje final se haya escrito en el archivo de
+transcript, y entonces copiaba el texto del turno *anterior*. La corrección
+sondea el archivo hasta que su `mtime` y el texto extraído se repiten en dos
+chequeos consecutivos —máximo 2 segundos, cada 0.1— y recién ahí copia.
+
+**Verificado en vivo:** se probó pegando el resultado y confirmando que
+correspondía al turno actual, no al previo.
+
+Esto cierra la entrada *Hook de portapapeles en Claude Code* de PENDIENTES.md.
+
+### Lanzador de doble clic
+
+**Archivos:** `.claude/launcher/Lanzar Claude Code - wPipeline.command`
+(ejecutable, en git) y una copia idéntica instalada en el Escritorio.
+
+Tres líneas de bash: `cd "$HOME/dev/wPipeline" || exit 1` y `claude`. Abre
+Claude Code ya parado en el directorio del proyecto, sin escribir nada en la
+terminal.
+
+Dos detalles deliberados: usa `$HOME` en vez de `/Users/carloswalraven`, para que
+el archivo no quede amarrado a este nombre de usuario; y `|| exit 1` corta si el
+`cd` falla, en vez de lanzar Claude Code en la carpeta equivocada.
+
+La copia versionada es la fuente; la del Escritorio es la instalación.
+
+### settings.json vs settings.local.json
+
+`.claude/settings.json` está en git: es la configuración compartida del proyecto
+—hoy, el hook—. `.claude/settings.local.json` está en `.gitignore`: guarda los
+permisos concedidos en esta máquina, que no le sirven a nadie más y no tienen por
+qué estar en un repo público.
 
 ---
 

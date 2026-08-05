@@ -1,4 +1,4 @@
-# GLOSARIO.md — v002 — 05-08-2026
+# GLOSARIO.md — v003 — 05-08-2026
 
 Cada término: nombre en inglés, definición en una frase, analogía si la hay.
 
@@ -69,6 +69,19 @@ una llave que abre unas puertas y no otras.
 **email noreply de GitHub** — Alias que te identifica en GitHub sin exponer tu
 correo real en el historial público.
 
+**CLI (Command Line Interface)** — La herramienta se maneja por comandos escritos
+en la terminal. *Analogía:* los controles reales de un rig, que existen antes que
+su picker.
+
+**GUI (Graphical User Interface)** — La interfaz de ventanas y botones.
+*Analogía:* el picker — una cáscara encima de los controles.
+
+**YAML** — Mismo papel que JSON (datos que el código lee), pero legible para
+humanos: sin llaves ni comillas, pura indentación.
+
+**headless** — Correr un programa sin interfaz, solo por comando. Es la condición
+para que la máquina lo pueda encadenar con otros pasos.
+
 ---
 
 ## Houdini específico
@@ -105,6 +118,9 @@ arquitectura del servidor de licencias de un estudio, en tu máquina.
 **Houdini packages** — Mecanismo moderno de SideFX para declarar variables y
 rutas en un archivo JSON. Es el estándar actual.
 
+**.bgeo.sc** — El formato de cache de geometría de Houdini, comprimido. Es lo que
+un shot de FX publica para que lighting lo consuma.
+
 ---
 
 ## Conceptos de pipeline
@@ -127,3 +143,15 @@ borrarla. Las versiones publicadas son inmutables.
 
 **MAPA** — Entrega de solo lectura, antes de implementar: qué existe, qué es
 reusable, qué supuestos rompe el cambio.
+
+**job scheduler** — El programa del farm que ejecuta trabajos respetando sus
+dependencias: Deadline, Tractor, OpenCue. *Analogía:* ruteo MIDI entre programas
+— no le importa quién recibe, mientras hable el protocolo.
+
+**dependencia (de jobs)** — "Yo arranco cuando termine aquel": la relación que
+encadena sim → export → render sin que haya un humano apretando el siguiente
+paso.
+
+**dev (secuencia reservada)** — La secuencia donde se explora sin cámara ni
+layout de producción. Los shots `dev` nunca se gradúan por renombre: lo que
+madura se publica como asset o se rehace en el shot real.
