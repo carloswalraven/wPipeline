@@ -1,4 +1,4 @@
-# PENDIENTES.md — v003 — 05-08-2026
+# PENDIENTES.md — v004 — 05-08-2026
 
 Decisiones selladas, **no construidas**. Cada entrada tiene un nombre de spec:
 las referencias cruzadas entre documentos se hacen por ese nombre, nunca por
@@ -122,13 +122,12 @@ enchufar Flow o Kitsu en fase 2 sin reescribir el pipeline que la consume.
 **Dos proyectos como prueba de aceptación**
 El segundo proyecto demo **no se crea a mano hoy**: lo crea el gatekeeper cuando
 exista, y crearlo *es* su prueba de aceptación. Las pruebas que solo tienen
-sentido con más de un show —naming único por prefijo de proyecto, raíces de
-producción múltiples, HDAs de dos shows conviviendo en la misma sesión de
-Houdini— corren contra los dos. El código de 3 letras del segundo proyecto se
-decide ese día, no antes. Razón: un pipeline probado contra un solo proyecto
-esconde sus supuestos hardcodeados, porque nunca hay un segundo caso que los
-contradiga. Conecta con la idea ya anotada en IDEAS.md de probar múltiples raíces
-con varios proyectos.
+sentido con más de un show —naming único por prefijo de proyecto, y HDAs de dos
+shows conviviendo en la misma sesión de Houdini— corren contra los dos. El código
+de 3 letras del segundo proyecto se decide ese día, no antes. Razón: un pipeline
+probado contra un solo proyecto esconde sus supuestos hardcodeados, porque nunca
+hay un segundo caso que los contradiga. La prueba de raíces múltiples vive
+aparte, en la spec *Múltiples raíces como prueba de aceptación*.
 
 **Múltiples raíces como prueba de aceptación**
 Un tercer proyecto demo, creado por el gatekeeper en una **segunda raíz de
