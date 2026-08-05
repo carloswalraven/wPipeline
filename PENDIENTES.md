@@ -1,4 +1,4 @@
-# PENDIENTES.md — v002 — 05-08-2026
+# PENDIENTES.md — v003 — 05-08-2026
 
 Decisiones selladas, **no construidas**. Cada entrada tiene un nombre de spec:
 las referencias cruzadas entre documentos se hacen por ese nombre, nunca por
@@ -129,6 +129,20 @@ decide ese día, no antes. Razón: un pipeline probado contra un solo proyecto
 esconde sus supuestos hardcodeados, porque nunca hay un segundo caso que los
 contradiga. Conecta con la idea ya anotada en IDEAS.md de probar múltiples raíces
 con varios proyectos.
+
+**Múltiples raíces como prueba de aceptación**
+Un tercer proyecto demo, creado por el gatekeeper en una **segunda raíz de
+producción** declarada en configuración, junto a los dos de la spec *Dos
+proyectos como prueba de aceptación*. Los dos primeros comparten raíz y prueban
+que el código de proyecto y el naming no estén hardcodeados; ese par no prueba la
+lista de raíces, porque el código que solo usa la primera se ve idéntico al que
+la respeta. El tercero es el que ejercita el índice. La segunda raíz vive en el
+disco interno, no en un segundo volumen: prueba la lógica de la lista, **no** el
+caso de volumen no montado, que ya cubre `volume_root()` de la etapa 0. Al
+documentar la prueba hay que decir ese alcance tal cual, sin venderla de más.
+Razón: hoy la entrada de INTERVIEW.md *Production roots are externalized
+configuration* defiende múltiples raíces sin una prueba que la respalde. Nace de
+la idea anotada en IDEAS.md el 05-08-2026.
 
 **Automatización headless (regla de diseño)**
 Toda acción del pipeline —publish, export, y el render cuando llegue— debe poder
