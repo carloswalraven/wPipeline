@@ -11,6 +11,9 @@ venv/
 .Spotlight-V100
 .Trashes
 
+# Claude Code — permisos locales de esta máquina, no se comparten
+.claude/settings.local.json
+
 # Houdini
 *.hip.bak
 *.hiplc.bak

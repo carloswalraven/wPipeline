@@ -1,4 +1,4 @@
-# INTERVIEW.md — v001 — 05-08-2026
+# INTERVIEW.md — v002 — 05-08-2026
 
 Argumentos de defensa. Cada entrada: el título de la decisión, el argumento en
 inglés listo para decir en voz alta, y la razón en español con su analogía.
@@ -45,7 +45,7 @@ folder is a warning, not an error. Pipelines that confuse 'empty' with 'broken'
 end up blocking the artists they're supposed to help."
 
 **Por qué (ES)**
-Si el script fallara por carpeta vacía, bloquearía justo el paso que necesitás
+Si el script fallara por carpeta vacía, bloquearía justo el paso que necesitas
 para llenarla.
 
 ---

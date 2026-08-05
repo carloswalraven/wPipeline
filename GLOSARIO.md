@@ -1,4 +1,4 @@
-# GLOSARIO.md — v001 — 05-08-2026
+# GLOSARIO.md — v002 — 05-08-2026
 
 Cada término: nombre en inglés, definición en una frase, analogía si la hay.
 
@@ -7,7 +7,7 @@ Cada término: nombre en inglés, definición en una frase, analogía si la hay.
 ## Programación general
 
 **git** — Control de versiones: guarda una foto completa del proyecto cada vez
-que se lo pedís y te deja volver a cualquiera. *Analogía:* incrementales de
+que se lo pides y te deja volver a cualquiera. *Analogía:* incrementales de
 `.hip`, pero automáticos y con nota de qué cambió. El nombre no es sigla; Linus
 Torvalds lo eligió medio en broma (en inglés británico es un insulto suave).
 
@@ -31,7 +31,7 @@ programas; gana la primera coincidencia.
 **mkdir (make directory)** — Crear una carpeta. La bandera `-p` crea también las
 intermedias que falten.
 
-**pwd (print working directory)** — "Decime dónde estoy parado".
+**pwd (print working directory)** — "Dime dónde estoy parado".
 
 **bandera / flag** — Opción extra que se le pasa a un comando, empieza con
 guiones.
@@ -39,7 +39,7 @@ guiones.
 **directorio de trabajo** — La carpeta donde estás parado; los comandos actúan
 sobre ella. Claude Code trabaja sobre la carpeta desde donde se lanza.
 
-**&&** — "Y si eso salió bien, hacé lo siguiente". Se corta al primer error.
+**&&** — "Y si eso salió bien, haz lo siguiente". Se corta al primer error.
 
 **variable de entorno** — Un valor que se le pasa a un programa al arrancarlo;
 vive solo mientras ese programa corre y no toca la instalación.
@@ -93,7 +93,7 @@ disponibles.
 **HOUDINI_OTLSCAN_PATH** — Variable de entorno con las carpetas donde Houdini
 busca HDAs al arrancar.
 
-**& (en paths de Houdini)** — Token que significa "y además, insertá acá el
+**& (en paths de Houdini)** — Token que significa "y además, inserta aquí el
 valor por defecto". Sin él, Houdini pierde sus HDAs de fábrica en esa sesión.
 
 **namespace (en HDAs)** — Prefijo en el nombre interno del operador para evitar
