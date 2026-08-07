@@ -1,4 +1,4 @@
-# INTERVIEW.md — v003 — 05-08-2026
+# INTERVIEW.md — v004 — 06-08-2026
 
 Argumentos de defensa. Cada entrada: el título de la decisión, el argumento en
 inglés listo para decir en voz alta, y la razón en español con su analogía.
@@ -23,16 +23,24 @@ construyendo y descubre el supuesto roto en la semana tres.
 ## Production roots are externalized configuration
 
 **The argument (EN)**
-"The pipeline doesn't assume where storage lives. Production roots are
-externalized in configuration, it supports multiple roots because in a studio
-shows usually live on different volumes, and it validates availability at
-startup with fail fast instead of failing halfway through a publish."
+"The pipeline is designed not to assume where storage lives: production roots are
+externalized into configuration, and the design carries a list of roots rather
+than a single one, because in a studio shows usually live on different volumes.
+Stage zero left the root hardcoded on purpose — externalizing it there would have
+contaminated the one assumption I was testing. The gatekeeper is what
+externalizes it, and the config file isn't the proof: the proof is creating a
+project in a second root and having every path still resolve. What is already
+built is the fail-fast side of it — availability gets validated at startup, so an
+unmounted volume stops you before a publish is halfway through."
 
 **Por qué (ES)**
-El código nunca escribe una ruta completa: escribe rutas relativas a una raíz
-que le dicen desde fuera. Es lo mismo que `$JOB` en Houdini. Mi disco externo me
-obliga a hacerlo bien: alguien que desarrolla todo en `~/Documents` nunca
-descubre sus rutas hardcodeadas hasta que otro corre su código.
+El código nunca escribe una ruta completa: escribe rutas relativas a una raíz que
+le dicen desde fuera. Es lo mismo que `$JOB` en Houdini. Mi disco externo me
+obliga a hacerlo bien: alguien que desarrolla todo en `~/Documents` nunca descubre
+sus rutas hardcodeadas hasta que otro corre su código. Hoy la raíz sigue fija en
+`launch_houdini.py` y es una sola, y el argumento lo dice así: la etapa 0 no era
+el lugar para externalizarla, y lo que cierra la deuda es la prueba de la spec
+*Múltiples raíces como prueba de aceptación*, no un archivo de configuración.
 
 ---
 
@@ -192,14 +200,18 @@ nombre. Es más barato duplicar trabajo una vez que romper rutas para siempre.
 tested against a single show hides its hardcoded assumptions, because nothing
 ever contradicts them — the one project code, the one root, the one naming
 prefix all look like they work. The multi-project tests are the ones that
-matter: unique naming per project prefix, multiple production roots, and HDAs
-from two shows coexisting in the same Houdini session. And I don't create the
-second project by hand — the tool creates it. That's the test."
+matter: unique naming per project prefix, and HDAs from two shows coexisting in
+the same Houdini session. Testing multiple production roots takes a third
+project in a second root, because when two projects share a root, code that only
+ever uses the first one looks identical to code that respects the list. And I
+don't create the second project by hand — the tool creates it. That's the test."
 
 **Por qué (ES)**
 Un solo proyecto no prueba nada: prueba que el código funciona para ese
-proyecto. El segundo es el que descubre las rutas fijas. Y crearlo a mano sería
-hacerle trampa al examen.
+proyecto. El segundo es el que descubre las rutas fijas y el naming hardcodeado;
+la lista de raíces la descubre recién el tercero, en otra raíz, y por eso esa
+prueba vive aparte en la spec *Múltiples raíces como prueba de aceptación*. Y
+crearlos a mano sería hacerle trampa al examen.
 
 ---
 

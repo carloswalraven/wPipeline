@@ -1,4 +1,4 @@
-# PENDIENTES.md — v004 — 05-08-2026
+# PENDIENTES.md — v005 — 06-08-2026
 
 Decisiones selladas, **no construidas**. Cada entrada tiene un nombre de spec:
 las referencias cruzadas entre documentos se hacen por ese nombre, nunca por
@@ -17,7 +17,7 @@ el Finder.
 ```
 wPipeline_Projects/
 └── DEM/
-    ├── project.yml
+    ├── project.json
     ├── assets/
     │   ├── char/
     │   │   └── dragon/
@@ -47,7 +47,7 @@ wPipeline_Projects/
                 │   └── lay/
                 └── publish/
                     ├── geo/
-                    │   └── s010_0020_fx_debris_v002.bgeo.sc
+                    │   └── DEM_s010_0020_fx_debris_v002.bgeo.sc
                     └── hda/
 ```
 
@@ -82,21 +82,179 @@ regla que aprender.
 
 **Departamentos con código de 3 letras**: `lgt`, `cmp`, `lay`… `fx` se queda en
 dos letras como excepción, por ser el nombre estándar. Es una **lista cerrada que
-vive en la configuración de la herramienta**, no en cada `project.yml`: los
+vive en la configuración de la herramienta**, no en cada `project.json`: los
 proyectos eligen de la lista, no inventan códigos.
 
 **Naming.** `work` versiona simple, porque el contexto ya lo da la carpeta:
 `dragon_fx_v003.hipnc`. `publish` nombra completo, porque va a viajar fuera de su
 carpeta: proyecto + origen + producto + versión —
-`DEM_dragon_fx_v001.hdanc`, `s010_0020_fx_debris_v002.bgeo.sc`.
+`DEM_dragon_fx_v001.hdanc`, `DEM_s010_0020_fx_debris_v002.bgeo.sc`. El prefijo de
+proyecto aplica a **todo** lo publicado, sin excepción, incluidos los caches de
+shot: el ejemplo anterior del cache no lo llevaba y contradecía la regla enunciada
+dos párrafos antes.
 
 **Publicados inmutables.** Las versiones conviven; se depreca, no se borra.
 
 **Assets publican herramientas, shots publican resultados.** Un asset publica
 HDAs; un shot publica caches.
 
-**`project.yml` en la raíz del proyecto, y solo el gatekeeper lo escribe.** Las
+**`project.json` en la raíz del proyecto, y solo el gatekeeper lo escribe.** Las
 carpetas son consecuencia de la fuente de verdad, no al revés.
+
+---
+
+## Etapa 1a — configuración y creación de proyectos
+
+La etapa 1 se partió en dos. **1a** es configuración de la herramienta y creación
+de proyectos; **1b** es secuencia, shot y asset dentro de un proyecto que ya
+existe. Razón: 1a se prueba sola —crear los tres proyectos demo en dos raíces *es*
+su prueba de aceptación— y cabe en una etapa chica.
+
+**JSON como formato de la fuente de verdad**
+El project file es `project.json`, no `project.yml`. Ningún intérprete de esta
+máquina lee YAML —ni el Python del sistema 3.12.3 ni el embebido de Houdini
+3.11.7—; los dos leen `json` de biblioteca estándar. Verificado con salida cruda
+en el MAPA de s006. Razón de fondo, más allá de la dependencia: YAML existe para
+que un humano edite el archivo a mano, y la spec *Árbol de carpetas y naming*
+prohíbe justamente eso —solo el gatekeeper escribe—. Sería pagar una dependencia
+en dos intérpretes por una comodidad que el diseño no permite usar. Alcance:
+decide el project file, **no** el formato de la configuración de la herramienta,
+que se sella en *Configuración de la herramienta en dos capas*.
+
+**Configuración de la herramienta en dos capas**
+Lo que hoy se llamaba "configuración de la herramienta" son dos cosas con reglas
+opuestas y viven separadas:
+
+- **Política del pipeline** —lista cerrada de departamentos, gramática de
+  nombres, padding de versiones—: igual en cualquier máquina, versionada en el
+  repo. Es parte de lo que la herramienta es, y de lo que un entrevistador abre.
+- **Configuración de máquina** —la lista de raíces de producción—: local, **fuera
+  de git**. Una ruta de Dropbox en un repo público es hardcodear mudado de lugar.
+
+Orden de descubrimiento: variable de entorno si está definida → archivo local del
+usuario → defaults versionados del repo. La variable de entorno permite apuntar la
+herramienta a otra configuración sin tocar archivos.
+
+Razón: con un archivo único hay que elegir entre publicar la ruta local o dejar la
+política fuera del portafolio, y ninguna sirve.
+
+**Descubrimiento de proyectos por escaneo**
+"Qué proyectos existen" se contesta escaneando las raíces declaradas en busca de
+`project.json`. No hay registro central. Esto **no** contradice la entrada de
+INTERVIEW.md *The gatekeeper is the only writer*: son dos preguntas de nivel
+distinto. Qué **contiene** un proyecto lo contesta siempre `project.json` y jamás
+el filesystem; **dónde** están los project files es la pregunta de arranque, y si
+su respuesta viniera de la fuente de verdad sería huevo y gallina.
+
+El escaneo se implementa como **operación de la capa de abstracción** sellada en
+*Fuente de verdad abstraída*, no como código suelto: el día que conteste Flow o
+Kitsu, ningún consumidor cambia. Es la primera operación concreta de esa capa.
+
+Descartado el registro central porque crea una segunda verdad que se desincroniza
+en silencio, y un registro que puede mentir es peor que un escaneo lento.
+
+Carpetas sin `project.json` se ignoran sin ruido —esto cubre `_etapa0_test`, que
+vive en la raíz de producción y no es un proyecto.
+
+**Campos de project.json**
+Seis campos, sin contenedores vacíos:
+
+```
+schema_version   entero, hoy 1
+code             código de proyecto de 3 letras
+name             nombre legible
+root             nombre lógico de la raíz
+houdini_version  versión clavada al crear
+created          timestamp ISO en UTC
+```
+
+`root` guarda el **nombre lógico** de la raíz (`main`, `internal`), nunca su ruta:
+la configuración declara las raíces con nombre y el proyecto dice en cuál vive.
+Guardar la ruta absoluta rompería un archivo inmutable el día que el volumen
+cambie de nombre o se monte en otra máquina. Además es verificable: la herramienta
+encontró el archivo escaneando cierta raíz y puede confirmar que el campo
+coincide.
+
+`houdini_version` se clava al crear, con la detectada en ese momento; el fallback
+a "la más reciente instalada" queda solo para archivos que no la declaren, según
+*Version pinning de Houdini por proyecto*.
+
+Sin contenedores vacíos de secuencias ni assets: los agrega la etapa 1b, y
+`schema_version` existe para que ese cambio sea declarado y no silencioso.
+
+**Gramática del código de proyecto**
+`code`: exactamente 3 caracteres, solo `A`–`Z` mayúsculas. Sin dígitos, sin
+acentos. `DEV` es palabra reservada.
+
+`name`: texto libre no vacío, cualquier idioma y acentos; no toca el disco, porque
+la carpeta se llama por el `code`.
+
+Sin dígitos a propósito: 17.576 combinaciones alcanzan para una carrera entera, y
+admitir dígitos abre `S01`, que se lee como secuencia. Cerrar el alfabeto hace que
+el código sea inconfundible dentro de cualquier nombre de archivo.
+
+`DEV` reservado porque `dev` ya es secuencia reservada y daría rutas como
+`DEV/seq/dev/`: legal para la máquina, trampa para el humano.
+
+La gramática de secuencias, shots y assets se sella en la etapa 1b.
+
+**Unicidad global del código de proyecto**
+El código es único en **todas** las raíces, no dentro de cada una. Razón: el
+prefijo viaja pegado a cada archivo publicado y esos archivos terminan cargados
+juntos en la misma sesión de Houdini; si la unicidad fuera por raíz, dos shows en
+volúmenes distintos podrían llamarse igual y colisionar el día que alguien abre
+los dos. La raíz es un detalle de almacenamiento, el namespace es global. Lo
+verifica el escaneo de *Descubrimiento de proyectos por escaneo*.
+
+**El prefijo de proyecto aplica a todo lo publicado**
+Sin excepciones: HDAs de asset y caches de shot por igual. La razón de existir del
+prefijo es que un archivo publicado viaja fuera de su carpeta —a un escritorio, a
+un email, a un directorio de entregas— y ahí el nombre es todo el contexto que
+queda. Un cache viaja tanto o más que un HDA: es lo que lighting recoge y arrastra
+a otra escena. Que el nombre del shot incluya su secuencia lo hace único dentro
+del show; el prefijo lo hace único entre shows.
+
+Descartado quitar el prefijo también de los assets. Descartada de plano la tercera
+vía —prefijo en assets y no en shots—: una regla con excepción sin razón que la
+explique es la más cara de todas. Corrige el ejemplo que contradecía la regla en
+*Árbol de carpetas y naming*.
+
+**Qué escribe la creación de un proyecto**
+En disco: la carpeta del proyecto, `project.json`, y las dos carpetas de primer
+nivel `assets/` y `seq/`. Nada más. Sin los cuatro tipos de asset, sin la
+secuencia `dev`: los crea la etapa 1b al vuelo cuando llegue el primer asset o
+shot. `assets/` y `seq/` sí van porque son la forma del proyecto.
+
+Si el código ya existe en cualquier raíz: error, no se toca nada, y el mensaje dice
+en qué raíz se encontró.
+
+Si existe la carpeta pero falta `project.json`: error, no se repara. Reparar
+significaría escribir un project file dentro de una carpeta cuyo contenido la
+herramienta no creó ni entiende, adoptando basura como si fuera un show. El
+gatekeeper no adopta lo que no escribió. Costo aceptado: un proyecto a medio crear
+se borra a mano.
+
+**Paquete importable y superficie CLI**
+El código nuevo vive en un paquete `wpipeline/` en la raíz del repo. Razón: las
+herramientas que corran dentro de Houdini importan, no ejecutan, y hoy
+`launch_houdini.py` no se puede importar sin ejecutarse porque termina en
+`os.execve`.
+
+`launch_houdini.py` **no se mueve** en esta etapa: es de la etapa 0, funciona, y
+migrarlo hoy mezclaría una refactorización con una etapa nueva. Migra en 1b o
+cuando estorbe.
+
+Houdini encuentra el paquete vía `PYTHONPATH` declarado en el package de
+*Integración Houdini vía packages* —el mismo mecanismo que ya sirve HDAs,
+sirviendo código—. El gatekeeper todavía no escribe packages: eso llega cuando
+haya HDAs de dos proyectos que cargar.
+
+CLI de un solo comando con subcomandos, no un script por acción, para que la
+validación viva en un lugar: `wpipeline create-project DEM --name "Demo Project"`.
+Salida en texto legible por defecto, bandera `--json` para salida estructurada, y
+código de salida 0/1 siempre confiable. Razón: *Automatización headless* exige
+invocación sin humano delante, y un comando que solo imprime prosa obliga a quien
+lo llame a parsear texto.
 
 ---
 
