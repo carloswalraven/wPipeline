@@ -1,4 +1,4 @@
-# CLAUDE.md — v002 — 05-08-2026
+# CLAUDE.md — v003 — 06-08-2026
 
 Lo construido y verificado. Nada de lo planeado: eso vive en PENDIENTES.md.
 
@@ -18,9 +18,30 @@ commiteando sola.
 
 ## Reglas de trabajo
 
-**Idioma.** El español del proyecto es neutro mexicano de tú (dime, pides, haz),
-nunca voseo (decime, pedís, hacé). Aplica a los documentos del repo y a las
-respuestas de Claude Code.
+**Idioma: qué va en cada capa.**
+
+- Los cinco documentos `.md` del repo: **español**.
+- Todo el texto dentro del código —docstrings, comentarios y mensajes que el
+  usuario ve—: **inglés**. También los comentarios de archivos de configuración
+  como `.gitignore`.
+- El README, cuando se escriba: **inglés**.
+- Los identificadores ya estaban en inglés y siguen así.
+
+Razón: el repo es público y es portafolio. Quien lo abra en una entrevista puede
+no leer español, y los docstrings son justo donde vive el razonamiento que le da
+valor al proyecto. Los documentos en español no son un problema —son notas de
+trabajo— siempre que la mezcla quede declarada en el README.
+
+El hook de `.claude/` ya estaba íntegramente en inglés sin que nadie lo hubiera
+decidido: elegir inglés hace que cumpla la regla sin tocarlo, y lo depurado no se
+reescribe.
+
+**El código se mantiene ASCII puro**: sin acentos ni rayas largas. Es
+consecuencia natural de que su texto esté en inglés, no una restricción aparte.
+
+**Idioma: qué dialecto, cuando el texto va en español.** Neutro mexicano de tú
+(dime, pides, haz), nunca voseo (decime, pedís, hacé). Aplica a los documentos
+del repo y a las respuestas de Claude Code.
 
 ---
 
