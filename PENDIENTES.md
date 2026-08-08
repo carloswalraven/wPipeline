@@ -1,4 +1,4 @@
-# PENDIENTES.md — v005 — 06-08-2026
+# PENDIENTES.md — v006 — 07-08-2026
 
 Decisiones selladas, **no construidas**. Cada entrada tiene un nombre de spec:
 las referencias cruzadas entre documentos se hacen por ese nombre, nunca por
@@ -128,12 +128,44 @@ opuestas y viven separadas:
 - **Política del pipeline** —lista cerrada de departamentos, gramática de
   nombres, padding de versiones—: igual en cualquier máquina, versionada en el
   repo. Es parte de lo que la herramienta es, y de lo que un entrevistador abre.
+  Vive en `wpipeline/policy/pipeline.json`, resuelto con rutas relativas al
+  paquete y no al directorio desde el que se invoque.
 - **Configuración de máquina** —la lista de raíces de producción—: local, **fuera
   de git**. Una ruta de Dropbox en un repo público es hardcodear mudado de lugar.
+  Vive en `~/.config/wpipeline/machine.json`, como un diccionario de nombre
+  lógico → ruta: la llave *es* el nombre con el que `project.json` apunta a su
+  raíz, y un diccionario garantiza que ese nombre sea único sin validarlo aparte.
 
-Orden de descubrimiento: variable de entorno si está definida → archivo local del
-usuario → defaults versionados del repo. La variable de entorno permite apuntar la
-herramienta a otra configuración sin tocar archivos.
+**Formato de las dos capas: JSON.** Un solo formato en todo el proyecto —project
+file, política y configuración de máquina— y cero dependencias: ningún intérprete
+de esta máquina lee YAML. Esto cierra el hueco que dejaba abierto la spec *JSON
+como formato de la fuente de verdad*, cuyo alcance era solo el project file.
+
+Orden de descubrimiento, **sin merge**: gana completa la primera capa que existe,
+y la carga reporta de qué capa vino. Mezclar tres capas es de donde salen los bugs
+de "¿de dónde salió este valor?", y el costo de contestar esa pregunta supera la
+comodidad de heredar la mitad de un archivo.
+
+`WPIPELINE_CONFIG` apunta a un **archivo** y reemplaza **solo la capa de máquina**.
+La política siempre viene del repo: es parte de lo que la herramienta *es*, no de
+dónde está parada, y dejar que una variable de entorno la sustituya convertiría el
+vocabulario cerrado de departamentos en uno abierto por la puerta de atrás.
+
+**Los defaults versionados no traen raíces.** Una ruta local en un repo público es
+hardcodear mudado de lugar, así que el default de la capa de máquina es la **lista
+vacía**. Los defaults del repo aportan política, nunca almacenamiento.
+
+**Cero raíces declaradas es error, con mensaje instructivo completo**: la ruta
+exacta del archivo a crear y un contenido de ejemplo copiable de la pantalla. Es
+lo primero que le pasa a cualquiera que clone el repo en una máquina limpia, y una
+herramienta que dice "no hay raíces" sin decir cómo se declaran obliga a adivinar
+o a leer el código.
+
+En `.gitignore` va una línea preventiva para `machine.json`, por si algún día
+queda una copia local en la raíz del repo. No hace falta hoy —el archivo vive en
+`~/.config`— pero el costo es cero y lo que previene es filtrar una ruta local a
+un repo público. Misma lógica que el *Block command line pushes that expose my
+email* que ya está activo en GitHub: una red para el error que no piensas cometer.
 
 Razón: con un archivo único hay que elegir entre publicar la ruta local o dejar la
 política fuera del portafolio, y ninguna sirve.
@@ -155,6 +187,13 @@ en silencio, y un registro que puede mentir es peor que un escaneo lento.
 
 Carpetas sin `project.json` se ignoran sin ruido —esto cubre `_etapa0_test`, que
 vive en la raíz de producción y no es un proyecto.
+
+**El escaneo es de un solo nivel por raíz.** Los proyectos son hijos directos de
+la raíz, así que se miran las carpetas de primer nivel y se busca `project.json`
+adentro de cada una; nada recursivo. La raíz principal vive en Dropbox, donde un
+barrido recursivo es lento y además puede tocar archivos *online-only* y forzar su
+descarga —el mismo problema que ya obliga a imprimir el tamaño en bytes en el
+inventario de la etapa 0.
 
 **Campos de project.json**
 Seis campos, sin contenedores vacíos:
@@ -234,11 +273,48 @@ herramienta no creó ni entiende, adoptando basura como si fuera un show. El
 gatekeeper no adopta lo que no escribió. Costo aceptado: un proyecto a medio crear
 se borra a mano.
 
+**Lectura tolera vista parcial, escritura exige certeza**
+Con raíces múltiples aparece un estado que con una sola no existía: ver *algunas*
+de las raíces. Las dos operaciones lo tratan distinto a propósito.
+
+Si una raíz declarada no está montada:
+
+- **Listar proyectos funciona**, con advertencia explícita de cuál raíz falta y la
+  lista marcada como parcial. Una respuesta incompleta y rotulada como incompleta
+  sigue siendo útil; negarse a contestar no ayuda a nadie.
+- **`create-project` falla.** La unicidad global del código no se puede garantizar
+  sin ver todas las raíces, y crear con esa duda puede fabricar una colisión que
+  no se descubre hasta que ya hay archivos publicados con el prefijo duplicado —o
+  sea cuando arreglarlo significa renombrar publicados inmutables.
+
+Mismo trato para un `project.json` ilegible —JSON inválido, o le falta alguno de
+los seis campos—: el escaneo lo reporta como advertencia con la ruta exacta y
+sigue; `create-project` falla mientras exista uno roto en cualquier raíz, porque
+ese archivo podría ser justamente el que declara el código que estás pidiendo.
+
+**Nunca se repara automáticamente**, y la diferencia con el caso de la spec *Qué
+escribe la creación de un proyecto* es de origen: una carpeta sin project file
+**nunca fue** un proyecto, y un project file roto **fue** un proyecto y algo lo
+dañó. Silenciarlo escondería daño real y de paso burlaría la unicidad. El
+gatekeeper reporta, no adivina.
+
+Es la misma frontera que separa *fail fast* de *no falles por vacío*, trazada
+sobre otra pregunta: leer tolera vista parcial, escribir exige certeza.
+
 **Paquete importable y superficie CLI**
-El código nuevo vive en un paquete `wpipeline/` en la raíz del repo. Razón: las
-herramientas que corran dentro de Houdini importan, no ejecutan, y hoy
-`launch_houdini.py` no se puede importar sin ejecutarse porque termina en
-`os.execve`.
+El código nuevo vive en un paquete `wpipeline/` en la raíz del repo. Dos razones:
+una CLI de subcomandos con validación centralizada no cabe en un script suelto sin
+convertirse en un archivo que hace de todo, y las funciones del paquete necesitan
+contrato de excepciones y no `die()`, según la spec *Contrato de errores del
+paquete*. Las herramientas que corran dentro de Houdini importan, no ejecutan.
+
+**Corrección.** La versión anterior de esta spec daba otra razón: que
+`launch_houdini.py` "no se puede importar sin ejecutarse porque termina en
+`os.execve`". Es falsa, y el MAPA de s007 lo verificó importando el módulo: el
+`os.execve` vive dentro de `main()` y el archivo tiene guarda `__main__`, así que
+el import es limpio y no lanza Houdini. La decisión de tener paquete se sostiene
+por las dos razones de arriba; el argumento viejo no se puede usar ni acá ni en
+una entrevista.
 
 `launch_houdini.py` **no se mueve** en esta etapa: es de la etapa 0, funciona, y
 migrarlo hoy mezclaría una refactorización con una etapa nueva. Migra en 1b o
@@ -255,6 +331,42 @@ Salida en texto legible por defecto, bandera `--json` para salida estructurada, 
 código de salida 0/1 siempre confiable. Razón: *Automatización headless* exige
 invocación sin humano delante, y un comando que solo imprime prosa obliga a quien
 lo llame a parsear texto.
+
+**`--root <nombre_lógico>` en `create-project`.** Opcional cuando hay exactamente
+una raíz declarada —no hay ambigüedad posible, y obligar a nombrar la única raíz
+que existe es ceremonia— y **obligatorio con dos o más**, con error claro que
+liste los nombres disponibles si falta. Lo que se prohíbe es la ambigüedad, no la
+comodidad: un default silencioso "la primera de la lista" es justo el supuesto
+escondido que la spec *Múltiples raíces como prueba de aceptación* existe para
+descubrir.
+
+**`houdini_version` al crear.** Detección automática si hay Houdini instalado. Si
+no lo hay, el campo se escribe como `null` y la salida avisa que el proyecto quedó
+sin versión clavada; a partir de ahí aplica el fallback ya sellado en *Version
+pinning de Houdini por proyecto*. Razón: atar la creación de un proyecto a tener el
+DCC instalado rompería *Automatización headless*, porque un scheduler puede
+perfectamente crear proyectos en una máquina que no tiene Houdini.
+
+**Contrato de errores del paquete**
+El paquete `wpipeline/` **lanza excepciones**. Jamás llama `sys.exit()` ni imprime
+a stderr. La capa CLI atrapa, imprime el mensaje legible y decide el código de
+salida.
+
+Razón: una biblioteca que corre dentro de Houdini no puede matar la sesión del
+artista con un `SystemExit`. `die()` es correcto en `launch_houdini.py` —un script
+de terminal, donde salir *es* el comportamiento deseado— e incorrecto en un paquete
+importable. No es que una versión esté mejor escrita que la otra: son dos contratos
+distintos para dos lugares distintos.
+
+Consecuencia inmediata: la lógica de detección de versión de Houdini se
+reimplementa en `wpipeline/` con `raise`. `parse_version` se copia idéntica, por
+ser pura y estar ya probada contra la lista sintética de la etapa 0;
+`find_newest_houdini` se reescribe con excepciones, porque su única diferencia real
+es cómo falla.
+
+**Deuda anotada:** quedan dos copias de esa lógica hasta que la etapa 1b migre
+`launch_houdini.py`. Ese día se borran las del script viejo y las del paquete
+quedan como únicas.
 
 ---
 
@@ -274,8 +386,32 @@ sims y los HDAs no se garantizan reproducibles entre versiones, y un show tiene
 que seguir siendo reproducible meses después de cerrado.
 
 **Fuente de verdad abstraída**
-Un archivo local JSON o YAML, detrás de una capa de abstracción, para poder
-enchufar Flow o Kitsu en fase 2 sin reescribir el pipeline que la consume.
+Un archivo local JSON —el formato quedó sellado en *Configuración de la herramienta
+en dos capas*— detrás de una capa de abstracción, para poder enchufar Flow o Kitsu
+en fase 2 sin reescribir el pipeline que la consume.
+
+**La capa nace en la etapa 1a**, con tres operaciones exactas y ni una más:
+
+```
+list_projects()       -> el escaneo de las raíces
+get_project(code)     -> un proyecto por su código
+create_project(...)   -> el gatekeeper escribiendo
+```
+
+`get_project` existe en la interfaz aunque la implementación por filesystem lo
+derive de `list_projects`: contra Flow o Kitsu es una consulta indexada y contra un
+escaneo es un barrido, y el punto de la interfaz es dejar que el backend elija.
+Ponerlo después significaría cambiar la interfaz cuando llegue el backend que lo
+necesita, que es exactamente lo que la capa existe para evitar.
+
+`ProjectRecord` carga los seis campos sellados en *Campos de project.json* más dos
+derivados que **no se persisten**: el nombre lógico de la raíz donde el escaneo lo
+encontró, y el `path`, calculado como raíz de la configuración + `code`. Que el
+`path` nunca se escriba es la garantía **mecánica** —no la promesa— de que no puede
+quedar obsoleto: lo que no está guardado no se desactualiza.
+
+Nada de secuencias, shots ni assets: eso es la etapa 1b, y `schema_version` existe
+para que ese crecimiento sea declarado y no silencioso.
 
 **Dos proyectos como prueba de aceptación**
 El segundo proyecto demo **no se crea a mano hoy**: lo crea el gatekeeper cuando
@@ -300,6 +436,12 @@ documentar la prueba hay que decir ese alcance tal cual, sin venderla de más.
 Razón: hoy la entrada de INTERVIEW.md *Production roots are externalized
 configuration* defiende múltiples raíces sin una prueba que la respalde. Nace de
 la idea anotada en IDEAS.md el 05-08-2026.
+
+**La segunda raíz es `~/wPipeline_Projects_internal`, con nombre lógico
+`internal`.** Fuera de `~/dev/wPipeline`, porque un `git clean` jamás puede
+alcanzar datos de producción —es el argumento entero de la entrada de INTERVIEW.md
+*Code and production data are separated*—, y fuera de `~/Documents`, porque iCloud
+puede sincronizarla y repetiría el conflicto Dropbox/git en otra nube.
 
 **Automatización headless (regla de diseño)**
 Toda acción del pipeline —publish, export, y el render cuando llegue— debe poder
@@ -340,6 +482,21 @@ Verificar que el servidor de licencias responde, leer los días restantes y
 avisar con anticipación. **No puede renovar sola**: la activación de Apprentice
 requiere la cuenta de SideFX. Se construye junto con el launcher. Modelado en el
 aviso de licencias de Zoic y Laika.
+
+**Dos fallas, dos mensajes.** El chequeo las distingue en vez de reportar "problema
+de licencia" y mandar a buscar:
+
+- **hserver caído** — no responde en `localhost:1715`. El mensaje incluye el
+  procedimiento de arranque manual: Licenses > License Administrator > Services >
+  Sesinetd Start, después Hserver Start. No pide contraseña de administrador.
+- **Licencia vencida** — el servidor contesta y lo que se acabó es la licencia.
+  Esta sí requiere la cuenta de SideFX.
+
+Razón: hserver no es un servicio del sistema —no lo levanta init.d ni systemd, lo
+dice el propio panel de SideFX—, así que muere en cada reinicio o apagado y no
+vuelve solo. Pasó tres veces en cuatro días y el diagnóstico correcto nunca fue
+licencia vencida. Un solo mensaje genérico manda a revisar la cuenta cuando lo que
+hacía falta eran dos clics. Sellada desde IDEAS.md, entrada del 06-08-2026.
 
 ---
 
