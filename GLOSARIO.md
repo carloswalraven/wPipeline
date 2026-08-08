@@ -1,4 +1,4 @@
-# GLOSARIO.md — v003 — 05-08-2026
+# GLOSARIO.md — v004 — 07-08-2026
 
 Cada término: nombre en inglés, definición en una frase, analogía si la hay.
 
@@ -82,6 +82,50 @@ humanos: sin llaves ni comillas, pura indentación.
 **headless** — Correr un programa sin interfaz, solo por comando. Es la condición
 para que la máquina lo pueda encadenar con otros pasos.
 
+**JSON** — Formato de datos que el código lee y escribe: llaves, comillas y
+listas. Es el único formato del proyecto: project file, política y configuración
+de máquina. *Analogía:* la ficha técnica de un plano — no es para leerla en voz
+alta, es para que otra herramienta la use.
+
+**módulo / paquete** — Un módulo es un archivo `.py`; un paquete es una carpeta
+de módulos que se importa como una unidad. *Analogía:* un HDA suelto vs. una
+librería de HDAs con su estructura.
+
+**importar** — Cargar código de otro archivo para usar sus funciones, **sin
+ejecutarlo como programa**. Un archivo bien hecho no hace nada al importarse.
+
+**excepción (exception) / raise / try-except** — Una excepción es un error que
+interrumpe lo que se estaba haciendo; `raise` es lanzarla, `try-except` es
+atraparla y decidir qué hacer. *Analogía:* el nodo que se pone rojo en vez de
+cerrar Houdini — quien lo mira decide si es fatal o no.
+
+**exit code (código de salida)** — El número que un programa deja al terminar:
+`0` es "todo bien", cualquier otro es falla. Es cómo un script sabe si el
+comando anterior funcionó, sin leer su texto.
+
+**stdout / stderr** — Los dos canales de salida de un programa: `stdout` es el
+resultado y `stderr` son los errores. Están separados para que una máquina pueda
+leer el resultado sin que los avisos se le mezclen.
+
+**subcomando** — Una acción dentro de un mismo comando: `wpipeline
+create-project` en vez de un programa distinto por acción. *Analogía:* `git
+commit` y `git push` — un solo git.
+
+**dataclass** — Una clase de Python que solo guarda campos, escrita en pocas
+líneas. *Analogía:* una ficha con casillas fijas.
+
+**unittest / suite de pruebas** — `unittest` viene incluido en Python y corre
+pruebas automáticas; la suite es el conjunto completo. Cada prueba afirma algo y
+falla ruidosamente si deja de ser cierto. *Analogía:* volver a abrir el mismo
+`.hip` de prueba después de cada cambio, pero automático y de golpe.
+
+**biblioteca estándar** — Lo que Python ya trae sin instalar nada. Todo este
+proyecto vive ahí: cero dependencias.
+
+**capa de abstracción** — Código que se pone en medio para que quien pregunta no
+sepa quién contesta. *Analogía:* un bus de audio — cambias qué está enchufado
+atrás sin tocar la mezcla.
+
 ---
 
 ## Houdini específico
@@ -134,6 +178,23 @@ software, para que siga siendo reproducible meses después.
 
 **gatekeeper** — La herramienta es la única que crea proyectos, shots y assets,
 con validación. Nadie crea carpetas a mano en el Finder.
+
+**fuente de verdad (source of truth)** — Quién contesta oficialmente qué existe.
+Hoy son los `project.json`; mañana podría ser Flow o Kitsu. Las carpetas son
+consecuencia de la fuente de verdad, no al revés.
+
+**schema_version** — Número de versión del formato de un archivo de datos, dentro
+del archivo mismo. Sirve para que un cambio de estructura sea declarado y no
+silencioso. *Analogía:* la versión de Houdini con la que se guardó un `.hip`.
+
+**nombre lógico (de una raíz)** — El apodo con el que la configuración declara una
+raíz de producción (`main`, `internal`); el proyecto guarda ese apodo y nunca la
+ruta absoluta. *Analogía:* el nombre de un bus en la consola — la señal sigue
+llegando aunque muevas el cable.
+
+**unicidad global** — El código de proyecto es único en **todas** las raíces, no
+dentro de cada una, porque el prefijo viaja pegado a cada archivo publicado y dos
+shows pueden terminar abiertos en la misma sesión.
 
 **work / publish** — Separación entre lo que estás trabajando y lo que ya está
 aprobado y es consumible por otros.

@@ -1,4 +1,4 @@
-# CLAUDE.md — v003 — 06-08-2026
+# CLAUDE.md — v004 — 07-08-2026
 
 Lo construido y verificado. Nada de lo planeado: eso vive en PENDIENTES.md.
 
@@ -50,7 +50,16 @@ del repo y a las respuestas de Claude Code.
 | Qué | Dónde | Régimen |
 |---|---|---|
 | Código | `~/dev/wPipeline` | Disco interno, con git, **fuera de Dropbox** |
-| Datos de producción | `/Volumes/W_AirProjects/Dropbox/APPS/wPipeline_Projects` | Dropbox, volumen externo, **sin git** |
+| Raíz de producción `main` | `/Volumes/W_AirProjects/Dropbox/APPS/wPipeline_Projects` | Dropbox, volumen externo, **sin git** |
+| Raíz de producción `internal` | `~/wPipeline_Projects_internal` | Disco interno, **sin git**, fuera del repo |
+| Configuración de máquina | `~/.config/wpipeline/machine.json` | Local, **fuera de git** |
+
+Las dos raíces se declaran por su **nombre lógico** (`main`, `internal`) en la
+configuración de máquina. Ningún proyecto guarda una ruta absoluta: guarda el
+nombre lógico, y la ruta se calcula. La raíz `internal` vive fuera de
+`~/dev/wPipeline` porque un `git clean` jamás puede alcanzar datos de
+producción, y fuera de `~/Documents` porque iCloud repetiría el conflicto
+Dropbox/git en otra nube.
 
 **Por qué están separados.** git y Dropbox pelean por los mismos archivos:
 Dropbox sincroniza el interior de `.git` mientras git lo está escribiendo, y un
@@ -198,8 +207,10 @@ describe el código tal como está, no lo que se planea.
 | `VERSION_RE` | `^Houdini(\d+)\.(\d+)\.(\d+)$` |
 
 `HDA_DIR` está fija en el código a propósito. Externalizarla era parte de lo que
-la etapa 0 excluía deliberadamente para no contaminar la prueba. La spec que lo
-corrige es *Raíces de producción múltiples y configurables* en PENDIENTES.md.
+la etapa 0 excluía deliberadamente para no contaminar la prueba. Eso quedó
+corregido en la etapa 1a —las raíces se declaran en
+`~/.config/wpipeline/machine.json`—, pero **este archivo sigue con su ruta fija**
+porque todavía no se migró al paquete. La migración es de la etapa 1b.
 
 Las tres extensiones se soportan desde el primer día aunque Apprentice solo
 genere `.hdanc`.
@@ -306,6 +317,240 @@ python3 ~/dev/wPipeline/launch_houdini.py
 
 ---
 
+## Etapa 1a — configuración y creación de proyectos
+
+Construida y verificada. Lo que sigue describe el código tal como está.
+
+### El paquete `wpipeline/`
+
+```
+wpipeline/
+├── __init__.py              solo docstring; importarlo no ejecuta nada
+├── __main__.py              entrada de `python3 -m wpipeline`
+├── cli.py                   argparse; unica capa que imprime y devuelve exit code
+├── errors.py                jerarquia de excepciones
+├── config.py                las dos capas de configuracion
+├── naming.py                gramatica de `code` y `name`, funciones puras
+├── houdini.py               deteccion de version, con excepciones
+├── policy/pipeline.json     politica versionada
+├── truth/
+│   ├── base.py              la interfaz abstracta (3 operaciones)
+│   ├── record.py            ProjectRecord y ScanResult
+│   └── filesystem.py        la implementacion por escaneo
+└── commands/
+    └── create_project.py    orquestacion: valida -> consulta -> escribe
+```
+
+Biblioteca estándar, sin dependencias, escrito contra Python 3.11 para que el
+intérprete embebido de Houdini (`python3.11libs`) lo pueda importar.
+
+`launch_houdini.py` **no se movió**: sigue en la raíz, intacto, con su propio
+`die()`. Su migración es de la etapa 1b.
+
+### Contrato de errores
+
+**El paquete lanza excepciones. Nunca llama `sys.exit()` ni escribe en stderr.**
+Solo `cli.py` atrapa, imprime y decide el código de salida.
+
+La razón no es estilo: una biblioteca que un día corre dentro de Houdini no
+puede matar la sesión del artista con un `SystemExit`. `die()` es correcto en
+`launch_houdini.py` —un script de terminal, donde salir *es* el
+comportamiento— e incorrecto en un paquete importable. No es que una versión
+esté mejor escrita: son dos contratos para dos lugares.
+
+La jerarquía real, toda colgando de `WPipelineError`:
+
+```
+WPipelineError
+├── PolicyError            la politica del repo falta o esta rota
+├── ConfigError            configuracion de maquina ilegible, o cero raices
+├── ValidationError        el valor rompe una regla de gramatica sellada
+├── RootError              una raiz declarada no se puede usar hoy
+├── HoudiniNotFoundError   no hay Houdini instalado
+└── SourceOfTruthError     la fuente de verdad no puede contestar con certeza
+    ├── ProjectExistsError       el codigo ya esta tomado en alguna raiz
+    ├── PathConflictError        la carpeta existe sin project file
+    └── CorruptProjectFileError  el project.json no se puede leer ni confiar
+```
+
+`cli.py` atrapa `WPipelineError` y nada más. Eso hace que una excepción nueva
+sea reportable el día que se escribe, sin tocar la CLI.
+
+### Las dos capas de configuración
+
+| Capa | Dónde | Régimen |
+|---|---|---|
+| Política del pipeline | `wpipeline/policy/pipeline.json` | En git, viaja con el paquete |
+| Configuración de máquina | `~/.config/wpipeline/machine.json` | Fuera de git, local |
+
+La política se resuelve con `Path(__file__).parent`, nunca contra el directorio
+de trabajo: la herramienta contesta igual desde cualquier carpeta. Verificado
+corriéndola desde `/tmp` con `PYTHONPATH`.
+
+**Honestidad sobre la política:** hoy el código consume únicamente
+`project_code`. Las llaves `departments`, `asset_types` y `version_padding`
+viajan en el archivo y **ningún código las lee todavía** —las consumirá la
+etapa 1b—. Están ahí porque el vocabulario cerrado es una decisión sellada y
+tenerlo en un archivo de datos es lo que hace que sea configuración y no una
+constante escondida.
+
+**Orden de descubrimiento de la capa de máquina, sin merge:**
+
+```
+WPIPELINE_CONFIG (un archivo)  ->  ~/.config/wpipeline/machine.json  ->  vacio
+```
+
+Gana **completa** la primera capa que existe, y el resultado reporta de cuál
+vino (`MachineConfig.source` y `.description`). Mezclar capas es de donde salen
+los bugs de "¿de dónde salió este valor?", y contestar esa pregunta cuesta más
+que heredar media configuración.
+
+`WPIPELINE_CONFIG` apunta a un **archivo** y reemplaza solo la capa de máquina.
+Si apunta a un archivo que no existe, **es error, no se cae a la capa
+siguiente**: apuntar a un archivo inexistente es una declaración rota, no una
+ausente, y caer en silencio convertiría un typo en la variable en "mis
+proyectos desaparecieron".
+
+Con cero raíces declaradas el error trae la ruta exacta del archivo a crear y
+un ejemplo copiable de la pantalla. El ejemplo usa `/Volumes/YourVolume/...`
+a propósito: ese string vive en un repo público y no puede cargar una ruta real.
+
+### La capa de fuente de verdad
+
+`truth/base.py` define la interfaz con **tres operaciones y ni una más**:
+
+```
+list_projects()      -> ScanResult
+get_project(code)    -> ProjectRecord | None
+create_project(code, name, root_name, houdini_version) -> ProjectRecord
+```
+
+`get_project` está en la interfaz aunque `filesystem.py` lo derive del escaneo:
+contra Flow o Kitsu sería consulta indexada, y el punto de la interfaz es dejar
+que el backend elija.
+
+**`ProjectRecord`** carga los seis campos que se persisten —`schema_version`,
+`code`, `name`, `root`, `houdini_version`, `created`— más dos derivados que
+**nunca se escriben**: `found_in_root` (la raíz donde el escaneo lo encontró) y
+`path` (calculado como raíz configurada + `code`). `to_file_data()` arma el
+diccionario a mano en vez de derivarlo del dataclass, justamente para que
+agregar un atributo derivado no pueda filtrar uno a disco por accidente. Hay
+una prueba que cuenta las llaves escritas.
+
+**El escaneo es de un solo nivel por raíz.** Carpetas sin `project.json` se
+ignoran sin ruido —eso cubre `_etapa0_test`—; archivos sueltos también.
+
+`describe_root_problem()` distingue *volumen no montado* de *la ruta no existe*
+de *existe pero no es carpeta*, porque son tres problemas con tres soluciones
+distintas. Usa `volume_root()`, reimplementada en el paquete.
+
+### La superficie CLI
+
+```
+python3 -m wpipeline create-project DEM --name "Demo Project" [--root main] [--json]
+python3 -m wpipeline list-projects [--json]
+```
+
+Sin instalación. Se corre parado en `~/dev/wPipeline`, o desde cualquier lado
+con `PYTHONPATH=~/dev/wPipeline`. Es el mismo mecanismo que va a usar Houdini
+para encontrar el paquete: uno, no dos.
+
+- **`--root`** es opcional con exactamente una raíz declarada —nombrar la única
+  raíz que existe es ceremonia— y **obligatorio con dos o más**, con error que
+  lista las disponibles. Un default silencioso "la primera de la lista" es
+  justo el supuesto escondido que la tercera raíz existe para descubrir.
+- **`--json`**: todo sale por stdout como un solo objeto JSON, **errores
+  incluidos**, y stderr queda vacío. Sin la bandera, los errores van a stderr.
+- **Exit codes**: 0 al terminar bien, 1 ante cualquier `WPipelineError`, 2 los
+  errores de uso de argparse.
+
+En modo JSON, `path` viaja **al lado** del objeto `project`, no adentro, para
+que ese objeto tenga exactamente los seis campos sellados y sea idéntico a lo
+que hay en disco.
+
+### Cuatro decisiones tomadas durante la construcción
+
+**1. Advertencia que bloquea la escritura vs. advertencia que no.** La regla
+sellada —leer tolera vista parcial, escribir exige certeza— trata distinto dos
+cosas sin nombrarlas, y el código las separa en `ScanResult`:
+
+- `unreadable_roots` y `damaged_files` **esconden códigos de la vista**, así
+  que la unicidad global no se puede garantizar y `create-project` se niega.
+- Un proyecto cuyo campo `root` no coincide con la raíz donde se encontró
+  **se lee bien**: su código es conocido, la unicidad sigue garantizada, y por
+  eso advierte sin bloquear. Se reporta, nunca se repara.
+
+`has_damage` es la propiedad que consulta la escritura; `warnings` es lo que ve
+el usuario, y ahí cae todo.
+
+**2. La ambigüedad de `--root` se rechaza antes de escanear.** Validación pura
+y barata primero, disco después. Con dos raíces tienes que nombrar la tuya
+aunque otra esté caída.
+
+**3. `houdini_version` es string, no tupla.** `"21.0.671"` es lo que se lee en
+el nombre de la carpeta y lo que un humano teclearía. La tupla es detalle
+interno y existe para que las versiones ordenen como números.
+
+**4. `created` es ISO 8601 en UTC con `+00:00` explícito y precisión de
+segundos.** Los microsegundos son ruido que nadie va a leer.
+
+### Pruebas
+
+**135 pruebas automáticas, `unittest` de biblioteca estándar.** Se corren desde
+la raíz del repo:
+
+```
+python3 -m unittest discover
+```
+
+Ninguna lee la configuración real ni toca las raíces reales: cada una apunta
+`WPIPELINE_CONFIG` a un archivo temporal con raíces temporales. Una prueba que
+dependiera de `~/.config` pasaría en esta máquina y fallaría en cualquier otra,
+que es el defecto que este proyecto dice combatir. Las de CLI corren
+`python3 -m wpipeline` en un subproceso, porque exit codes y separación de
+streams no son reales hasta que un proceso termina de verdad.
+
+La detección de Houdini se prueba contra carpetas sintéticas, igual que en la
+etapa 0: hay una sola versión instalada, así que la lógica de "elegir la más
+reciente" nunca se ejercita por realidad.
+
+### La prueba de aceptación — PASÓ
+
+Los tres proyectos **los creó la herramienta** contra las raíces reales.
+Crearlos a mano habría sido hacerle trampa al examen.
+
+| Proyecto | Nombre | Raíz |
+|---|---|---|
+| `DEM` | Demo Project | `main` |
+| `ORC` | Orc | `main` |
+| `NEB` | Nebula | `internal` |
+
+**Qué probó cada mitad, con su alcance honesto:**
+
+- **DEM y ORC comparten raíz.** Ese par prueba que el código de proyecto y el
+  naming no están hardcodeados, porque hay un segundo caso que contradice al
+  primero. **No** prueba la lista de raíces: el código que solo usa la primera
+  se habría visto idéntico.
+- **NEB, en la segunda raíz, es el que ejercita el índice de raíces.**
+- **La prueba negativa fue la más filosa:** pedir `DEM` en la raíz `internal`
+  falló diciendo que ya existe en `main`. Un pipeline con unicidad por raíz
+  habría aceptado ese comando. Ese rechazo es lo que demuestra que el namespace
+  es global y la raíz es un detalle de almacenamiento.
+- **Lo que NO probó:** el caso de volumen no montado. La segunda raíz vive en
+  el disco interno, así que se probó la lógica de la lista y nada más. Ese caso
+  sigue cubierto por `volume_root()` de la etapa 0.
+
+También se verificó que crear `DEV` se rechaza por reservado, que ninguna
+carpeta nueva apareció tras cada error, y que la colisión con `--json` sale
+100% parseable por stdout con stderr vacío y exit 1.
+
+**La verificación final del árbol fue visual: Carlos la hizo con sus ojos en
+las dos raíces.** Cada proyecto tiene exactamente `assets/`, `seq/` y
+`project.json`, sin tipos de asset y sin secuencia `dev` —esos los crea la
+etapa 1b al vuelo—, y `_etapa0_test` quedó intacta.
+
+---
+
 ## Entorno verificado
 
 | Componente | Estado |
@@ -316,6 +561,11 @@ python3 ~/dev/wPipeline/launch_houdini.py
 | Homebrew | `6.0.15` en `/opt/homebrew` |
 | GitHub CLI | `gh 2.97.0`, autenticado, protocolo HTTPS |
 | `~/.zprofile` | Homebrew agregado con `eval "$(/opt/homebrew/bin/brew shellenv)"` |
+| Python de Houdini | rama `3.11` (`.../houdini/python3.11libs`) |
+| `~/.config/wpipeline/machine.json` | Existe, declara `main` e `internal` |
+| `~/wPipeline_Projects_internal` | Existe; contiene `NEB` |
+| Raíz `main` | Contiene `DEM`, `ORC` y `_etapa0_test` |
+| Suite de pruebas | 135 pruebas, `python3 -m unittest discover`, en verde |
 
 Dos cosas que conviene tener presentes:
 

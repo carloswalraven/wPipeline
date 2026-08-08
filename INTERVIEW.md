@@ -1,4 +1,4 @@
-# INTERVIEW.md — v004 — 06-08-2026
+# INTERVIEW.md — v005 — 07-08-2026
 
 Argumentos de defensa. Cada entrada: el título de la decisión, el argumento en
 inglés listo para decir en voz alta, y la razón en español con su analogía.
@@ -28,19 +28,20 @@ externalized into configuration, and the design carries a list of roots rather
 than a single one, because in a studio shows usually live on different volumes.
 Stage zero left the root hardcoded on purpose — externalizing it there would have
 contaminated the one assumption I was testing. The gatekeeper is what
-externalizes it, and the config file isn't the proof: the proof is creating a
-project in a second root and having every path still resolve. What is already
-built is the fail-fast side of it — availability gets validated at startup, so an
+externalizes it, and the config file was never the proof: the proof was creating
+a project in a second root and having every path still resolve, which is exactly
+what the acceptance test did. Availability is validated up front too, so an
 unmounted volume stops you before a publish is halfway through."
 
 **Por qué (ES)**
 El código nunca escribe una ruta completa: escribe rutas relativas a una raíz que
 le dicen desde fuera. Es lo mismo que `$JOB` en Houdini. Mi disco externo me
 obliga a hacerlo bien: alguien que desarrolla todo en `~/Documents` nunca descubre
-sus rutas hardcodeadas hasta que otro corre su código. Hoy la raíz sigue fija en
-`launch_houdini.py` y es una sola, y el argumento lo dice así: la etapa 0 no era
-el lugar para externalizarla, y lo que cierra la deuda es la prueba de la spec
-*Múltiples raíces como prueba de aceptación*, no un archivo de configuración.
+sus rutas hardcodeadas hasta que otro corre su código. La deuda que este argumento
+tenía —defender múltiples raíces sin una prueba que lo respaldara— la cerró la
+prueba de aceptación: la herramienta creó un proyecto en una segunda raíz
+declarada en configuración. Con su alcance dicho tal cual: probó la lógica de la
+lista, no el caso de volumen no montado.
 
 ---
 
@@ -196,22 +197,22 @@ nombre. Es más barato duplicar trabajo una vez que romper rutas para siempre.
 ## Multi-project is an acceptance test, not an afterthought
 
 **The argument (EN)**
-"The gatekeeper's acceptance test is creating two projects, not one. A pipeline
+"The gatekeeper's acceptance test was creating two projects, not one. A pipeline
 tested against a single show hides its hardcoded assumptions, because nothing
 ever contradicts them — the one project code, the one root, the one naming
-prefix all look like they work. The multi-project tests are the ones that
-matter: unique naming per project prefix, and HDAs from two shows coexisting in
-the same Houdini session. Testing multiple production roots takes a third
+prefix all look like they work. Testing multiple production roots took a third
 project in a second root, because when two projects share a root, code that only
 ever uses the first one looks identical to code that respects the list. And I
-don't create the second project by hand — the tool creates it. That's the test."
+didn't create any of them by hand — the tool created all three. That's the test.
+The HDA half of it, two shows coexisting in one Houdini session, comes with the
+publish stage."
 
 **Por qué (ES)**
 Un solo proyecto no prueba nada: prueba que el código funciona para ese
 proyecto. El segundo es el que descubre las rutas fijas y el naming hardcodeado;
-la lista de raíces la descubre recién el tercero, en otra raíz, y por eso esa
-prueba vive aparte en la spec *Múltiples raíces como prueba de aceptación*. Y
-crearlos a mano sería hacerle trampa al examen.
+la lista de raíces la descubre recién el tercero, en otra raíz, y por eso al
+documentar la prueba las dos mitades se cuentan por separado, cada una con su
+alcance. Y crearlos a mano habría sido hacerle trampa al examen.
 
 ---
 
@@ -265,3 +266,82 @@ human in the middle."
 **Por qué (ES)**
 Es la experiencia de la que sale la regla de headless. No es una preferencia
 teórica: es haber perdido horas de artista haciendo de cable entre dos programas.
+
+---
+
+## Libraries raise, command lines translate
+
+**The argument (EN)**
+"The package never exits and never prints. It raises, and the command line layer
+is the only thing that catches, prints a readable message and picks an exit code.
+That's not a style preference — it's what makes the same code safe to import
+inside Houdini. A library that calls `sys.exit()` takes the artist's session down
+with it. My stage zero launcher does exit on error, and that's correct there,
+because it's a terminal script and exiting is the whole point. Same logic, two
+different contracts, because they live in two different places."
+
+**Por qué (ES)**
+Es la diferencia entre un fusible y cortar la luz de la casa. La función que
+detecta un problema casi nunca es la que sabe qué tan grave es: eso lo sabe quien
+la llamó. Si la de abajo decide morir, le quita esa decisión a todos los de
+arriba, incluido un panel de Houdini que solo quería pintar un mensaje en rojo.
+
+---
+
+## Reads tolerate a partial view, writes demand certainty
+
+**The argument (EN)**
+"With multiple production roots you get a state that doesn't exist with one: you
+can see some of them. Listing projects still works when a volume is missing — it
+warns which root it couldn't read and labels the list as partial, because an
+incomplete answer that says it's incomplete is still useful. Creating a project
+refuses outright. Project codes are unique across every root, and I can't claim
+uniqueness over roots I never read. The cost of being wrong isn't symmetric: a
+partial list wastes a second of your time, a duplicate code is discovered when
+there are already published files carrying the same prefix, and by then fixing it
+means renaming immutable publishes."
+
+**Por qué (ES)**
+Es el banco: consultar el saldo con un servidor caído te puede dar un número viejo
+y avisarte que está viejo, y sirve. Hacer una transferencia con ese mismo servidor
+caído no se hace, porque el error no se descubre hasta que el dinero ya se movió.
+Leer y escribir no merecen el mismo nivel de certeza, y tratarlos igual es o
+bloquear de más o romper de más.
+
+---
+
+## The negative test is the one that proves it
+
+**The argument (EN)**
+"The sharpest test in the acceptance run wasn't creating the three projects — it
+was one that had to fail. I asked the tool to create a project code that already
+existed, but in a *different* root than the one I was targeting, and it refused
+and told me which root already had it. A pipeline with per-root uniqueness would
+have happily accepted that command. The successful runs prove the code path
+works; that refusal is what proves the namespace is actually global and the root
+is just storage."
+
+**Por qué (ES)**
+Las pruebas que pasan te dicen que el camino feliz funciona. Las que tienen que
+fallar te dicen que la regla existe de verdad. Es la diferencia entre confirmar
+que la puerta abre y confirmar que la cerradura cierra: nadie compra una cerradura
+probando solo lo primero.
+
+---
+
+## One format everywhere, zero dependencies
+
+**The argument (EN)**
+"Everything is JSON: the project file, the versioned pipeline policy, and the
+machine configuration. I looked at YAML because it's nicer to hand-edit, and
+rejected it for two reasons. First, neither interpreter on this machine reads it
+— not the system Python and not the one embedded in Houdini — so it would have
+cost a dependency in two places. Second, and this is the one that settled it, the
+whole design says only the tool writes these files. I'd have been paying a
+dependency for a convenience the design doesn't allow anyone to use."
+
+**Por qué (ES)**
+Un formato de más es una respuesta de más que dar, y una razón de más que
+sostener. Cero dependencias no es purismo: es que el proyecto entero corre en
+cualquier Python 3.11 o más nuevo sin instalar nada, incluido el que viene adentro
+de Houdini, que es justo donde no quieres andar instalando cosas.
