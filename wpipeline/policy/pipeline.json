@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "project_code": {
+    "length": 3,
+    "alphabet": "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+    "reserved": ["DEV"]
+  },
+  "departments": ["fx", "lgt", "cmp", "lay"],
+  "asset_types": ["char", "prop", "env", "fx"],
+  "version_padding": 3
+}

@@ -14,6 +14,11 @@ venv/
 # Claude Code - local permissions for this machine, not shared
 .claude/settings.local.json
 
+# wPipeline - machine config lives in ~/.config/wpipeline/, never in the repo.
+# This line is a net for the day a local copy is left here by mistake: a real
+# production path must not reach a public repository.
+machine.json
+
 # Houdini
 *.hip.bak
 *.hiplc.bak
