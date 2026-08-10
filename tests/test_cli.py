@@ -17,6 +17,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from wpipeline.truth.record import FILE_FIELDS
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
@@ -171,7 +173,17 @@ class TestListProjects(CliTestCase):
         payload = json.loads(done.stdout)
         self.assertTrue(payload["ok"])
         self.assertFalse(payload["partial"])
-        self.assertEqual(payload["projects"][0]["code"], "DEM")
+        self.assertEqual(payload["projects"][0]["project"]["code"], "DEM")
+
+    def test_json_project_object_has_exactly_the_six_sealed_fields(self):
+        # Same shape as create-project --json: project and path sit side by
+        # side, so the project object is identical to what is on disk.
+        self.run_cli("create-project", "DEM", "--name", "Demo")
+        done = self.run_cli("list-projects", "--json")
+        payload = json.loads(done.stdout)
+        entry = payload["projects"][0]
+        self.assertEqual(sorted(entry["project"]), sorted(FILE_FIELDS))
+        self.assertIn("path", entry)
 
     def test_a_missing_root_is_reported_and_still_exits_zero(self):
         self.run_cli("create-project", "DEM", "--name", "Demo")

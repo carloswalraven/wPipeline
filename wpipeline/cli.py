@@ -111,7 +111,7 @@ def _run_list(args):
                 "command": "list-projects",
                 "partial": result.partial,
                 "projects": [
-                    dict(record.to_file_data(), path=str(record.path))
+                    {"project": record.to_file_data(), "path": str(record.path)}
                     for record in result.projects
                 ],
                 "unreadable_roots": result.unreadable_roots,
