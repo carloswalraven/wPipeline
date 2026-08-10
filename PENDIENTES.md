@@ -1,4 +1,4 @@
-# PENDIENTES.md — v007 — 07-08-2026
+# PENDIENTES.md — v008 — 10-08-2026
 
 Decisiones selladas, **no construidas**. Cada entrada tiene un nombre de spec:
 las referencias cruzadas entre documentos se hacen por ese nombre, nunca por
@@ -115,11 +115,36 @@ HDAs; un shot publica caches.
 carpetas son consecuencia de la fuente de verdad, no al revés.
 
 **Gramática de secuencias, shots y assets**
-Sin sellar todavía. Se decide en el chat de planeación **antes** de construir la
-1b, igual que se hizo con la gramática del código de proyecto. Lo que ya está
-decidido y la restringe: shots de 10 en 10, el nombre del shot incluye su
-secuencia, `dev` es secuencia reservada, y los cuatro tipos de asset son lista
-cerrada.
+Sellada en s008 (10-08-2026). Cuatro puntos:
+
+**Secuencias: `s` + 3 dígitos, numeradas de 10 en 10** (`s010`, `s020`). La `s`
+es de *sequence*: el prefijo carga el tipo de entidad, y un nombre que empieza
+con letra sobrevive a hojas de cálculo y scripts que convertirían `010` en `10`.
+Tres dígitos dan 99 huecos numerando de 10 en 10 — un largometraje anda entre 30
+y 80 secuencias. `dev` es la única secuencia fuera del patrón, por reservada.
+
+**Shots: 4 dígitos, de 10 en 10, nombre completo `s010_0020`.** Cuatro dígitos
+porque una secuencia larga puede quemar 500 números y las inserciones a mitad
+comen huecos rápido; con 9999 el espacio es holgado para siempre. Además
+distingue a simple vista: 3 dígitos = secuencia, 4 = shot — `s010_0020` no se
+puede leer al revés.
+
+**Assets: minúsculas `a-z`, dígitos `0-9` y `_`.** Ni espacios, ni acentos, ni
+mayúsculas, ni guion medio. Empieza con letra; `_` no al inicio ni al final, ni
+doble (`__`); largo 2 a 32 (`fx` cabe, y 32 corta los nombres-párrafo). El `_`
+se permite por legibilidad diaria (`debris_pack`): el naming de publish se
+parte por posiciones conocidas, no adivinando, así que un `_` interno no lo
+rompe. Espacios y acentos son veneno de rutas: shells que parten argumentos y
+discos que normalizan Unicode distinto.
+
+**Reservados por ámbito.** Secuencias: solo `dev`. Shots: nada — su forma es
+cerrada, no hay nombres libres. Assets: `work`, `publish`, `dev` y los cuatro
+tipos (`char`, `prop`, `env`, `fx`). Razón: un asset `work` produce rutas como
+`assets/char/work/work/` y un asset `fx` publicados `DEM_fx_fx_v001` —
+parseables por posición, pero cada lectura humana tropieza. Quien quiera un
+asset así lo llama `environment` o algo más específico. La lista vive en
+`wpipeline/policy/pipeline.json`, hermana del reservado `DEV` de códigos de
+proyecto, y el validador la recibe como argumento, nunca como constante.
 
 El precedente de la 1a vale la pena repetirlo: la gramática vive en la política
 versionada y las funciones de validación la reciben como argumento, nunca como
