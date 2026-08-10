@@ -1,4 +1,4 @@
-# GLOSARIO.md — v004 — 07-08-2026
+# GLOSARIO.md — v005 — 10-08-2026
 
 Cada término: nombre en inglés, definición en una frase, analogía si la hay.
 
@@ -27,6 +27,13 @@ texto funcione en cualquier máquina.
 programas; gana la primera coincidencia.
 
 **cd (change directory)** — Moverte a una carpeta en la terminal.
+
+**grep** — Buscador de texto de la terminal: le das un patrón y una
+lista de archivos, e imprime cada línea donde aparece. No abre ni edita
+nada. Banderas comunes: `-n` agrega el número de línea; `-B3`/`-A3`
+muestran 3 líneas de contexto antes (*Before*) y después (*After*) de
+cada coincidencia. *Analogía:* Cmd+F, pero para archivos que no tienes
+abiertos y varios a la vez.
 
 **mkdir (make directory)** — Crear una carpeta. La bandera `-p` crea también las
 intermedias que falten.
