@@ -1,3 +1,3 @@
 #!/bin/bash
-cd "$HOME/dev/wPipeline" || exit 1
+cd "$HOME/wApps/wPipeline" || exit 1
 claude

@@ -49,7 +49,7 @@ del repo y a las respuestas de Claude Code.
 
 | Qué | Dónde | Régimen |
 |---|---|---|
-| Código | `~/dev/wPipeline` | Disco interno, con git, **fuera de Dropbox** |
+| Código | `~/wApps/wPipeline` | Disco interno, con git, **fuera de Dropbox** |
 | Raíz de producción `main` | `/Volumes/W_AirProjects/Dropbox/APPS/wPipeline_Projects` | Dropbox, volumen externo, **sin git** |
 | Raíz de producción `internal` | `~/wPipeline_Projects_internal` | Disco interno, **sin git**, fuera del repo |
 | Configuración de máquina | `~/.config/wpipeline/machine.json` | Local, **fuera de git** |
@@ -57,7 +57,7 @@ del repo y a las respuestas de Claude Code.
 Las dos raíces se declaran por su **nombre lógico** (`main`, `internal`) en la
 configuración de máquina. Ningún proyecto guarda una ruta absoluta: guarda el
 nombre lógico, y la ruta se calcula. La raíz `internal` vive fuera de
-`~/dev/wPipeline` porque un `git clean` jamás puede alcanzar datos de
+`~/wApps/wPipeline` porque un `git clean` jamás puede alcanzar datos de
 producción, y fuera de `~/Documents` porque iCloud repetiría el conflicto
 Dropbox/git en otra nube.
 
@@ -134,7 +134,7 @@ Esto cierra la entrada *Hook de portapapeles en Claude Code* de PENDIENTES.md.
 **Archivos:** `.claude/launcher/Lanzar Claude Code - wPipeline.command`
 (ejecutable, en git) y una copia idéntica instalada en el Escritorio.
 
-Tres líneas de bash: `cd "$HOME/dev/wPipeline" || exit 1` y `claude`. Abre
+Tres líneas de bash: `cd "$HOME/wApps/wPipeline" || exit 1` y `claude`. Abre
 Claude Code ya parado en el directorio del proyecto, sin escribir nada en la
 terminal.
 
@@ -312,7 +312,7 @@ Se parte de `os.environ.copy()` y no de un entorno vacío, porque Houdini necesi
 ### Cómo se corre
 
 ```
-python3 ~/dev/wPipeline/launch_houdini.py
+python3 ~/wApps/wPipeline/launch_houdini.py
 ```
 
 ---
@@ -451,8 +451,8 @@ python3 -m wpipeline create-project DEM --name "Demo Project" [--root main] [--j
 python3 -m wpipeline list-projects [--json]
 ```
 
-Sin instalación. Se corre parado en `~/dev/wPipeline`, o desde cualquier lado
-con `PYTHONPATH=~/dev/wPipeline`. Es el mismo mecanismo que va a usar Houdini
+Sin instalación. Se corre parado en `~/wApps/wPipeline`, o desde cualquier lado
+con `PYTHONPATH=~/wApps/wPipeline`. Es el mismo mecanismo que va a usar Houdini
 para encontrar el paquete: uno, no dos.
 
 - **`--root`** es opcional con exactamente una raíz declarada —nombrar la única
