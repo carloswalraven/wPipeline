@@ -1,4 +1,4 @@
-# PENDIENTES.md — v008 — 10-08-2026
+# PENDIENTES.md — v009 — 12-08-2026
 
 Decisiones selladas, **no construidas**. Cada entrada tiene un nombre de spec:
 las referencias cruzadas entre documentos se hacen por ese nombre, nunca por
@@ -183,12 +183,90 @@ el archivo.
 Hoy conviven dos copias de la lógica de detección de versión de Houdini: las
 suyas y las de `wpipeline/houdini.py`, que hacen lo mismo y fallan distinto
 —`die()` allá, `raise` acá—, según la spec ya construida *Contrato de errores
-del paquete*.
+del paquete*. El MAPA de la 1b encontró una tercera duplicación que esta spec
+no mencionaba: `volume_root` vive idéntica en el script y en
+`wpipeline/truth/filesystem.py`.
 
-La 1b migra el launcher al paquete. Ese día se borran las funciones del script
-viejo y quedan las del paquete como únicas. No se hizo en la 1a a propósito:
-mezclar una refactorización con una etapa nueva hace que, si algo se rompe, no
-se sepa cuál de las dos lo rompió.
+La 1b migra el launcher al paquete como subcomando `launch`, con la forma
+sellada en *Decisiones del MAPA de la 1b*: el paquete resuelve y lanza
+excepciones, `cli.py` ejecuta y termina procesos. Ese día `launch_houdini.py`
+se borra completo —incluida su copia de `volume_root`— y quedan las funciones
+del paquete como únicas. No se hizo en la 1a a propósito: mezclar una
+refactorización con una etapa nueva hace que, si algo se rompe, no se sepa
+cuál de las dos lo rompió.
+
+**Decisiones del MAPA de la 1b**
+Selladas el 12-08-2026, en el chat de planeación que confirmó el MAPA de la
+etapa. Siete puntos que las specs anteriores dejaban abiertos:
+
+**1. Registro por archivo marcador propio por entidad.** Una secuencia, un
+shot o un asset existe cuando el gatekeeper escribió su archivo de registro
+dentro de su carpeta; una carpeta sin marcador es invisible, igual que
+`_etapa0_test` hoy. Es la regla de la 1a repetida en cada nivel del árbol.
+`project.json` queda frío —la 1b no lo toca y su `schema_version` se queda
+en 1— y los marcadores nuevos nacen con su propio `schema_version`.
+Descartado registrar las sub-entidades en `project.json`: sería un archivo
+caliente reescrito por cada shot, viviendo en Dropbox, y encima es el marcador
+de compleción del proyecto —un fallo a media reescritura lo dejaría corrupto—.
+Descartado que las carpetas mismas sean el registro: contradice que las
+carpetas son consecuencia de la fuente de verdad, no al revés (*Árbol de
+carpetas y naming*).
+
+**2. Chequeo estricto mínimo de `schema_version` al leer.** Si el número no
+es el que el código conoce, error claro: "este archivo es más nuevo que la
+herramienta". Sin lógica de migración: hoy solo existe la versión 1, así que
+un número distinto solo puede ser más nuevo o corrupto, y ambos se rechazan.
+Aplica parejo a `project.json`, a los marcadores nuevos y a la política. Es lo
+que cierra que el número sea decorativo: hoy se escribe y nadie lo lee.
+Descartado dejarlo como deuda: la 1b introduce los primeros archivos con
+schema propio, y estrenar un formato sin su chequeo es sembrar el bug de
+compatibilidad para encontrarlo después.
+
+**3. La certeza al escribir se exige sobre el ámbito de la unicidad.** Crear
+un proyecto exige leer todas las raíces, porque su código es único
+globalmente. Crear una secuencia, un shot o un asset exige certeza sobre el
+proyecto contenedor: su raíz montada, su registro legible, sus marcadores del
+ámbito sin daño. Las otras raíces no bloquean. La regla sellada *Lectura
+tolera vista parcial, escritura exige certeza* no cambia: se aplica con
+precisión sobre lo que la escritura afirma, y crear un shot en `DEM` no
+afirma nada sobre las demás raíces. Descartado el bloqueo global para toda
+escritura: es más estricto que la regla que lo justifica.
+
+**4. La interfaz de la fuente de verdad crece con operaciones explícitas por
+entidad.** `create_sequence`, `create_shot`, `create_asset`, con sus
+`list_`/`get_` donde hagan falta —del orden de nueve operaciones—. Cada firma
+pide exactamente lo que su entidad necesita, y es lo que un backend Flow o
+Kitsu implementaría de todos modos. Descartadas las operaciones genéricas por
+`kind`: firmas bolsa donde cada llamada carga argumentos que no aplican, y la
+claridad se muda del código a la documentación.
+
+**5. El launcher migra como subcomando `launch`.** El paquete solo
+**resuelve** —binario, entorno, versión clavada del proyecto—, lanzando
+excepciones; el `os.execve` vive en `cli.py`, la única capa con permiso de
+terminar procesos. `launch DEM` lee la versión clavada de `DEM`: el primer
+lector real de `houdini_version`, que es lo que la spec *Version pinning de
+Houdini por proyecto* dejaba pendiente. `launch_houdini.py` se borra completo
+ese día, incluida la copia duplicada de `volume_root` que la spec *Migración
+de launch_houdini.py y deuda de duplicación* no mencionaba. Descartado
+conservar un script aparte: la superficie quedaría partida en dos entradas
+que hacen lo mismo.
+
+**6. La política declara un bloque de gramática por entidad.** Espejo de
+`project_code`: bloques `asset_name` (largo 2 a 32, alfabeto, reservados
+`work`, `publish`, `dev` y los cuatro tipos), `sequence` y `shot` con su
+forma. Cada validador recibe su bloque como argumento, según el precedente de
+*Gramática de secuencias, shots y assets*. Si los reservados referencian
+`asset_types` o repiten la lista literal es detalle del plan de pasos, no de
+esta decisión. Descartada la llave suelta fuera de un bloque: rompe el
+precedente y desparrama la gramática por el archivo.
+
+**7. `find_apprentice` queda amarrado a Apprentice, declarado.** La edición
+migra como constante nombrada, con docstring que declara la limitación
+consciente. Generalizarla sería lógica que esta máquina jamás ejercitaría
+—solo hay Apprentice instalado—, el mismo estatus que "elegir la versión más
+reciente" con una sola versión en disco. El día que haga falta, una constante
+se vuelve parámetro. Descartado parametrizar sin poder probarlo: código que
+nunca corre es donde los bugs esperan.
 
 ---
 
